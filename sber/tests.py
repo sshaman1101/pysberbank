@@ -104,7 +104,7 @@ class RestTestCase(unittest.TestCase):
         for key in ('OrderNumber', 'Amount', 'Ip', 'ErrorCode'):
             self.assertIn(key, response)
 
-    # @unittest.skip("skip ext status")
+    @unittest.skip("skip ext status")
     def test_status_ext(self):
         url = self.urls['status_ext']
         request = dict(
@@ -122,6 +122,41 @@ class RestTestCase(unittest.TestCase):
         for key in ('orderNumber', 'amount', 'ip', 'date', 'errorCode'):
             self.assertIn(key, response)
 
+    @unittest.skip("skip reverse")
+    def test_reverse(self):
+        url = self.urls['reverse']
+        request = dict(
+            userName=self.username,
+            password=self.password,
+            # Номер заказа в платежной системе. Уникален в пределах системы.
+            orderId='976495d3-2fa6-4e99-a026-058f83622767',  # you can get it after payment
+            language='RU'  # Язык в кодировке ISO 639-1. Если не указан, считается, что язык – русский.
+        )
+        response = self._request(url, request)
+        self.assertEqual(response.get('errorCode'), '7',
+                         msg='Reverse over DECLINE order must return ErrorCode=7 Returned: {errorCode} {errorMessage}'.format(**response))
+        request['orderId'] = '30ab9530-eeb0-4a9d-beb9-1ba8c8c0b637'
+        response = self._request(url, request)
+        self.assertEqual(response.get('errorCode'), '7',
+                         msg='Reverse over DEPOSITED order must return ErrorCode=7 Returned: {errorCode} {errorMessage}'.format(**response))
+
+    def test_refund(self):
+        url = self.urls['refund']
+        request = dict(
+            userName=self.username,
+            password=self.password,
+            # Номер заказа в платежной системе. Уникален в пределах системы.
+            orderId='976495d3-2fa6-4e99-a026-058f83622767',  # you can get it after payment
+            # Сумма возврата в валюте заказа. Может быть меньше или равна остатку в заказе.
+            amount=13531,
+            language='RU'  # Язык в кодировке ISO 639-1. Если не указан, считается, что язык – русский.
+        )
+        response = self._request(url, request)
+        self.assertEqual(response.get('errorCode'), '7', msg='Refund over DECLINE order must return ErrorCode=7 Returned: {errorCode} {errorMessage}'.format(**response))
+
+        request['orderId'] = '30ab9530-eeb0-4a9d-beb9-1ba8c8c0b637'
+        response = self._request(url, request)
+        self.assertEqual(response.get('errorCode'), '0', msg='Refund over DEPOSITED order must return ErrorCode=0 Returned: {errorCode} {errorMessage}'.format(**response))
 
 
 def init_logger():
