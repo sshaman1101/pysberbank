@@ -22,6 +22,10 @@ class RestTestCase(unittest.TestCase):
         self.urls = dict(
             # Регистрация заказа
             register='https://3dsec.sberbank.ru/payment/rest/register.do',
+            # Получение статуса заказа
+            status='https://3dsec.sberbank.ru/payment/rest/getOrderStatus.do',
+            # Получение статуса заказа -- расширенное
+            status_ext='https://3dsec.sberbank.ru/payment/rest/getOrderStatusExtended.do',
             # Регистрация заказа с предавторизацией
             auth_register='https://3dsec.sberbank.ru/payment/rest/registerPreAuth.do',
             # Запрос завершения оплаты заказа с указанием суммы только в деньгах
@@ -41,6 +45,19 @@ class RestTestCase(unittest.TestCase):
         if not hasattr(self, 'password'):
             self.password = getpass.getpass('You need to specify sberbank API password for testing > ')
 
+    def _request(self, url, params):
+        logger.debug('Register request  is {0!r}'.format(params))
+        response = urllib.request.urlopen('{0}?{1}'.format(url, urllib.parse.urlencode(params)))
+        logger.debug('Register response is {0.status} {0._method} {0.reason} {headers}'.format(response, headers=response.getheaders()))
+        self.assertEqual(response.status, 200)
+        response_body = response.read()
+        logger.debug('Register response body is {0!r}'.format(response_body))
+        self.assertIsNotNone(response_body)
+        response_dict = json.loads(response_body.decode('utf8'), encoding='utf8')
+        logger.debug('Register unmarshaled response  is {0!r}'.format(response_dict))
+        return response_dict
+
+    @unittest.skip("skip register")
     def test_register(self):
         url = self.urls['register']
         request = dict(
@@ -62,18 +79,49 @@ class RestTestCase(unittest.TestCase):
             # *Время жизни заказа. Если не задано вычисляется по sessionTimeoutSecs
             expirationDate=(datetime.datetime.now() + datetime.timedelta(minutes=9)).isoformat().split('.')[0]
         )
-        logger.debug('Register request  is {0!r}'.format(request))
-        response = urllib.request.urlopen('{0}?{1}'.format(url, urllib.parse.urlencode(request)))
-        logger.debug('Register response is {0.status} {0._method} {0.reason} {headers}'.format(response, headers=response.getheaders()))
-        self.assertEqual(response.status, 200)
-        response_body = response.read()
-        logger.debug('Register response body is {0!r}'.format(response_body))
-        self.assertIsNotNone(response_body)
-        response_dict = json.loads(response_body.decode('utf8'), encoding='utf8')
-        logger.debug('Register unmarshaled response  is {0!r}'.format(response_dict))
-        self.assertNotIn('errorCode', response_dict)
-        self.assertIn('orderId', response_dict)
-        self.assertIn('formUrl', response_dict)
+        response = self._request(url, request)
+        if 'errorCode' in response and response.get('errorCode') != '0':
+            self.assertNotIn('errorCode', response)
+        self.assertIn('orderId', response)
+        self.assertIn('formUrl', response)
+        # payment info: card 4111111111111111 Kenny McCormick CVC2 = 123
+
+    @unittest.skip("skip status")
+    def test_status(self):
+        url = self.urls['status']
+        request = dict(
+            userName=self.username,
+            password=self.password,
+            # Номер заказа в платежной системе. Уникален в пределах системы.
+            orderId='976495d3-2fa6-4e99-a026-058f83622767',  # you can get it after payment
+            language='RU'  # Язык в кодировке ISO 639-1. Если не указан, считается, что язык – русский.
+        )
+        response = self._request(url, request)
+        # Error Code is not 0 in this request if status != DEPOSITED
+        # if 'ErrorCode' in response and response.get('ErrorCode') != '0':
+        #     self.assertNotIn('ErrorCode', response)
+        # check required answer keys
+        for key in ('OrderNumber', 'Amount', 'Ip', 'ErrorCode'):
+            self.assertIn(key, response)
+
+    # @unittest.skip("skip ext status")
+    def test_status_ext(self):
+        url = self.urls['status_ext']
+        request = dict(
+            userName=self.username,
+            password=self.password,
+            # Номер заказа в платежной системе. Уникален в пределах системы.
+            orderId='976495d3-2fa6-4e99-a026-058f83622767',  # you can get it after payment
+            language='RU'  # Язык в кодировке ISO 639-1. Если не указан, считается, что язык – русский.
+        )
+        response = self._request(url, request)
+        if 'errorCode' in response and response.get('errorCode') != '0':
+            self.assertNotIn('errorCode', response)
+        # errorCode = 0 in this request if success not N otherwise
+        # check required answer keys
+        for key in ('orderNumber', 'amount', 'ip', 'date', 'errorCode'):
+            self.assertIn(key, response)
+
 
 
 def init_logger():
