@@ -6,6 +6,7 @@ import json
 import logging
 import urllib.request
 import urllib.parse
+import urllib.error
 logger = logging.getLogger(__name__)
 
 class SberError(Exception): pass
@@ -60,21 +61,37 @@ class SberWrapper(object):
             # todo: Soap implementation
             raise NotImplementedError("SOAP haven't implemented yet")
         logger.debug('Request  is {0!r}'.format(params))
-        # todo: exception handling
-        if self.post:
-            request = urllib.request.Request(url)
-            # adding charset parameter to the Content-Type header.
-            request.add_header("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
-            data = urllib.parse.urlencode(params)
-            data = data.encode('utf-8')
-            response = urllib.request.urlopen(request, data)
-        else:
-            response = urllib.request.urlopen('{0}?{1}'.format(url, urllib.parse.urlencode(params)))
+
+        try:
+            if self.post:
+                request = urllib.request.Request(url)
+                # adding charset parameter to the Content-Type header.
+                request.add_header("Content-Type","application/x-www-form-urlencoded;charset=utf-8")
+                data = urllib.parse.urlencode(params)
+                data = data.encode('utf-8')
+                response = urllib.request.urlopen(request, data)
+            else:
+                response = urllib.request.urlopen('{0}?{1}'.format(url, urllib.parse.urlencode(params)))
+        except urllib.error.HTTPError as e:
+            exception_body = ''
+            try:
+                exception_body = e.fp.read()
+            except: pass
+            logger.error('Sberbank REST-server return wrong status {0.code}: {0.msg}'.format(e), exc_info=True,
+                         extra={'response': exception_body})
+            raise SberNetworkError
+
+        except urllib.error.URLError as e:
+            logger.warning('Error {0!r} happened during processing request'.format(e), exc_info=True)
+            raise SberNetworkError
+
         logger.debug('Response is {0.status} {0._method} {0.reason} {headers}'.format(response, headers=response.getheaders()))
-        assert response.status == 200
         response_body = response.read()
         logger.debug('Response body is {0!r}'.format(response_body))
-        assert response_body is not None
+        if response_body is None:
+            logger.error('Sberbank REST-server return empty reply with HTTPCode={0}'.format(response.status))
+            raise SberNetworkError
+
         response_dict = json.loads(response_body.decode('utf8'), encoding='utf8')
         logger.debug('Unmarshaled response  is {0!r}'.format(response_dict))
         return response_dict
@@ -98,6 +115,7 @@ class SberWrapper(object):
         :param extra: some extra params to store in the system
         :return: (order_id, form_url)
         """
+        # 1. preparing data to request
         url = self.urls['register']
         request = dict(
             # Логин магазина, полученный при подключении
@@ -134,7 +152,16 @@ class SberWrapper(object):
         if expiration:
             # *Время жизни заказа. Если не задано вычисляется по sessionTimeoutSecs
             request['expirationDate'] = expiration.isoformat().split('.')[0]
-        response = self._request(url, request)
+
+        # 2. send request to the server
+        try:
+            response = self._request(url, request)
+        except SberError:
+            raise
+        except Exception as e:
+            raise SberError(e)
+
+        # 3. processing reply
         if 'errorCode' in response and response.get('errorCode') != '0':
             raise SberRequestError('register', response['errorCode'],
                                    response.get('errorMessage', 'Description not presented'))
@@ -142,3 +169,34 @@ class SberWrapper(object):
             raise SberNetworkError('Service temporary unavailable')
         return response['orderId'], response['formUrl']
 
+    def status(self, order_id: str, language: str='RU'):
+        """
+        Get order status
+        :param order_id: order UID
+        :param language: Acquiring page language
+        :return: <dict> order data
+        """
+        # 1. preparing data to request
+        url = self.urls['status']
+        request = dict(
+            userName=self._username,
+            password=self._password,
+            # Номер заказа в платежной системе. Уникален в пределах системы.
+            orderId=order_id,
+            # Язык в кодировке ISO 639-1. Если не указан, считается, что язык – русский.
+            language=language
+        )
+
+        # 2. send request to the server
+        try:
+            response = self._request(url, request)
+        except SberError:
+            raise
+        except Exception as e:
+            raise SberError(e)
+
+        # 3. processing reply
+        if 'ErrorCode' in response and response.get('ErrorCode') != '0':
+            raise SberRequestError('register', response['ErrorCode'],
+                                   response.get('ErrorMessage', 'Description not presented'))
+        return response

@@ -111,7 +111,7 @@ class RestTestCase(unittest.TestCase):
         response = self._request(url, request)
         # Error Code is not 0 in this request if status != DEPOSITED
         # if 'ErrorCode' in response and response.get('ErrorCode') != '0':
-        #     self.assertNotIn('ErrorCode', response)
+            #     self.assertNotIn('ErrorCode', response)
         # check required answer keys
         for key in ('OrderNumber', 'Amount', 'Ip', 'ErrorCode'):
             self.assertIn(key, response)
@@ -189,6 +189,16 @@ class WrapperTestCase(unittest.TestCase):
         self.assertIsInstance(form_url, str)
         self.assertRegex(form_url, '^http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$')
         self.assertRegex(order, '^\w{8}-\w{4}-\w{4}-\w{4}-\w{12}$')  # UID
+
+    def test_status(self):
+        order_id = '85885185-e5ba-4f61-bb87-8ba65ff13245'
+        logger.debug('Status order {} by REST POST request(default params)'.format(
+            order_id))
+        result = self.wrapper.status(order_id)
+        for key in ('OrderNumber', 'Amount', 'Ip', 'ErrorCode'):
+            self.assertIn(key, result)
+
+
 
 def init_logger():
     handler = logging.FileHandler(path.join(path.dirname(path.abspath(__file__)), 'tests.log'), mode='w')
