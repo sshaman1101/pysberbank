@@ -1,4 +1,9 @@
-
+# Virtual enviroment
 /env/
+# PyCharm project files
 /.idea/
+# Testing log file
 /sber/tests.log
+# Python cache
+__pycache__
+*.py[oc]
