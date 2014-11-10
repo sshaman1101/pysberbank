@@ -34,6 +34,10 @@ class SberWrapper(object):
         register='https://3dsec.sberbank.ru/payment/rest/register.do',
         # get order status
         status='https://3dsec.sberbank.ru/payment/rest/getOrderStatus.do',
+        # get order extended status
+        status_ext='https://3dsec.sberbank.ru/payment/rest/getOrderStatusExtended.do',
+        # refund order
+        refund='https://3dsec.sberbank.ru/payment/rest/refund.do'
     )
     soap_urls = dict(
 
@@ -197,6 +201,73 @@ class SberWrapper(object):
 
         # 3. processing reply
         if 'ErrorCode' in response and response.get('ErrorCode') != '0':
-            raise SberRequestError('register', response['ErrorCode'],
+            raise SberRequestError('status', response['ErrorCode'],
                                    response.get('ErrorMessage', 'Description not presented'))
         return response
+
+    def status_ext(self, order_id: str, language: str='RU'):
+        """
+        Get order status
+        :param order_id: order UID
+        :param language: Acquiring page language
+        :return: <dict> order data
+        """
+        # 1. preparing data to request
+        url = self.urls['status_ext']
+        request = dict(
+            userName=self._username,
+            password=self._password,
+            # Номер заказа в платежной системе. Уникален в пределах системы.
+            orderId=order_id,
+            # Язык в кодировке ISO 639-1. Если не указан, считается, что язык – русский.
+            language=language
+        )
+
+        # 2. send request to the server
+        try:
+            response = self._request(url, request)
+        except SberError:
+            raise
+        except Exception as e:
+            raise SberError(e)
+
+        # 3. processing reply
+        if 'errorCode' in response and response.get('errorCode') != '0':
+            raise SberRequestError('status_ext', response['errorCode'],
+                                   response.get('errorMessage', 'Description not presented'))
+        return response
+
+    def refund(self, order_id: str, amount: int, language: str='RU'):
+        """
+        Refund order and send <amount> back to user credit card
+        :param order_id: Sberbank order UID
+        :param amount: Order amount in minimal unit of currency(penny / kopeck)
+        :param language: Acquiring page language
+        :return: Sberbank status text
+        """
+        # 1. preparing data to request
+        url = self.urls['refund']
+        request = dict(
+            userName=self._username,
+            password=self._password,
+            # Номер заказа в платежной системе. Уникален в пределах системы.
+            orderId=order_id,
+            # Сумма платежа в копейках (или центах)
+            amount=amount,
+            # Язык в кодировке ISO 639-1. Если не указан, считается, что язык – русский.
+            language=language
+        )
+
+        # 2. send request to the server
+        try:
+            response = self._request(url, request)
+        except SberError:
+            raise
+        except Exception as e:
+            raise SberError(e)
+
+        # 3. processing reply
+        if 'errorCode' in response and response.get('errorCode') != '0':
+            raise SberRequestError('refund', response['errorCode'],
+                                   response.get('errorMessage', 'Description not presented'))
+        return response.get('errorMessage', 'OK')

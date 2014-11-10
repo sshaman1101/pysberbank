@@ -12,6 +12,7 @@ import urllib.parse
 import logging
 from os import path
 import sys
+from sber.pysberbps import SberRequestError
 
 logger = logging.getLogger(__name__)
 
@@ -192,11 +193,45 @@ class WrapperTestCase(unittest.TestCase):
 
     def test_status(self):
         order_id = '85885185-e5ba-4f61-bb87-8ba65ff13245'
-        logger.debug('Status order {} by REST POST request(default params)'.format(
-            order_id))
+        logger.debug('Status order {} by REST POST request'.format(order_id))
         result = self.wrapper.status(order_id)
         for key in ('OrderNumber', 'Amount', 'Ip', 'ErrorCode'):
             self.assertIn(key, result)
+
+    def test_status_ext(self):
+        order_id = '85885185-e5ba-4f61-bb87-8ba65ff13245'
+        logger.debug('Status_ext order {} by REST POST request'.format(order_id))
+
+        result = self.wrapper.status_ext(order_id)
+
+        for key in ('orderNumber', 'amount', 'ip', 'date', 'errorCode'):
+            self.assertIn(key, result)
+
+    def test_refund(self):
+        # DEPOSITED
+        order_id = '45329480-e039-4510-baab-0bb97cf117d3'
+        amount = 35
+        logger.debug('Refund order {}#DEPOSITED by REST POST request amount {}'.format(order_id, amount))
+        result = self.wrapper.refund(order_id, amount)
+        self.assertIsInstance(result, str, msg='Refund over DEPOSITED order must return ErrorCode=0 Returned: {0!r}'.format(result))
+
+        # DECLINED
+        order_id = 'b0ef485c-6b98-45bd-8897-fd174d595dc2'
+        amount = 35
+        logger.debug('Refund order {}#DECLINED by REST POST request amount {}'.format(order_id, amount))
+        self.assertRaisesRegex(SberRequestError, 'refund error 7.*', self.wrapper.refund, order_id, amount)
+
+        # REFUNDED
+        order_id = '30ab9530-eeb0-4a9d-beb9-1ba8c8c0b637'
+        amount = 13531
+        logger.debug('Refund order {}#REFUNDED by REST POST request amount {}'.format(order_id, amount))
+        self.assertRaisesRegex(SberRequestError, 'refund error 7.*', self.wrapper.refund, order_id, amount)
+
+        # CREATED
+        order_id = 'f1ee4da0-6737-43ad-91eb-5b5fb73365ef'
+        amount = 35
+        logger.debug('Refund order {}#CREATED by REST POST request amount {}'.format(order_id, amount))
+        self.assertRaisesRegex(SberRequestError, 'refund error 7.*', self.wrapper.refund, order_id, amount)
 
 
 
