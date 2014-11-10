@@ -3,7 +3,10 @@
 # PyCharm project files
 /.idea/
 # Testing log file
-/sber/tests.log
+/pysberbps/tests.log
 # Python cache
 __pycache__
 *.py[oc]
+#Distro files
+/*.egg-info/
+/dist/

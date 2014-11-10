@@ -9,6 +9,10 @@ import urllib.parse
 import urllib.error
 logger = logging.getLogger(__name__)
 
+__author__ = 'Mikhail Nacharov'
+__version__ = '0.0.1.dev1'
+__author_email__ = 'mnach@ya.ru'
+
 class SberError(Exception): pass
 
 class SberNetworkError(SberError): pass
