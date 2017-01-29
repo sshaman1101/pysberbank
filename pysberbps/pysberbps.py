@@ -36,6 +36,8 @@ class SberWrapper(object):
     rest_urls = dict(
         # register order in sberbank
         register='https://3dsec.sberbank.ru/payment/rest/register.do',
+	# register order in sberbank (for 2 steps payments with hold mode)
+        registerPreAuth='https://3dsec.sberbank.ru/payment/rest/registerPreAuth.do',
         # get order status
         status='https://3dsec.sberbank.ru/payment/rest/getOrderStatus.do',
         # get order extended status
@@ -105,8 +107,8 @@ class SberWrapper(object):
         return response_dict
 
     def register(self, order: str, amount: int, success_url: str, currency: int=643, fail_url: str=None,
-                 description: str='', language: str='RU', page_type: PageType=PageType.DESKTOP, clinet_id: str=None,
-                 session_timeout: int=1200, expiration: datetime.date=None, extra: dict=None):
+                 is_pre_auth: bool=False, description: str='', language: str='RU', page_type: PageType=PageType.DESKTOP,
+		 clinet_id: str=None, session_timeout: int=1200, expiration: datetime.date=None, extra: dict=None):
         """
         Register request in acquiring system
         :param order: order id in the store
@@ -114,7 +116,8 @@ class SberWrapper(object):
         :param success_url: Send user to this URL after success of payment
         :param currency: Currency code in ISO 4217
         :param fail_url: Send user to this URL after failure of payment
-        :param description: order description in free text format
+        :param is_pre_auth: If True, activates hold mode (2-step payments processing), default False
+	:param description: order description in free text format
         :param language: Acquiring page language
         :param page_type: Is it mobile or desctop user ?
         :param clinet_id: Client id in the store
@@ -125,6 +128,8 @@ class SberWrapper(object):
         """
         # 1. preparing data to request
         url = self.urls['register']
+	if is_pre_auth:
+            url = self.urls['registerPreAuth']
         request = dict(
             # Логин магазина, полученный при подключении
             userName=self._username,
