@@ -36,7 +36,7 @@ class SberWrapper(object):
     rest_urls = dict(
         # register order in sberbank
         register='https://3dsec.sberbank.ru/payment/rest/register.do',
-	# register order in sberbank (for 2 steps payments with hold mode)
+        # register order in sberbank (for 2 steps payments with hold mode)
         registerPreAuth='https://3dsec.sberbank.ru/payment/rest/registerPreAuth.do',
         # get order status
         status='https://3dsec.sberbank.ru/payment/rest/getOrderStatus.do',
@@ -108,7 +108,7 @@ class SberWrapper(object):
 
     def register(self, order: str, amount: int, success_url: str, currency: int=643, fail_url: str=None,
                  is_pre_auth: bool=False, description: str='', language: str='RU', page_type: PageType=PageType.DESKTOP,
-		 clinet_id: str=None, session_timeout: int=1200, expiration: datetime.date=None, extra: dict=None):
+         clinet_id: str=None, session_timeout: int=1200, expiration: datetime.date=None, extra: dict=None):
         """
         Register request in acquiring system
         :param order: order id in the store
@@ -117,7 +117,7 @@ class SberWrapper(object):
         :param currency: Currency code in ISO 4217
         :param fail_url: Send user to this URL after failure of payment
         :param is_pre_auth: If True, activates hold mode (2-step payments processing), default False
-	:param description: order description in free text format
+    :param description: order description in free text format
         :param language: Acquiring page language
         :param page_type: Is it mobile or desctop user ?
         :param clinet_id: Client id in the store
@@ -128,59 +128,59 @@ class SberWrapper(object):
         """
         # 1. preparing data to request
         url = self.urls['register']
-	if is_pre_auth:
+        if is_pre_auth:
             url = self.urls['registerPreAuth']
-        request = dict(
-            # Логин магазина, полученный при подключении
-            userName=self._username,
-            # Пароль магазина, полученный при подключении
-            password=self._password,
-            # Номер (идентификатор) заказа в системе магазина
-            orderNumber=order,
-            # Сумма платежа в минимальных единицах валюты(копейки).
-            amount=amount,
-            # *Код валюты платежа ISO 4217.
-            currency=currency,
-            # Адрес, на который надо перенаправить пользователя в случае успешной оплаты
-            returnUrl=success_url,
-            # *Язык в кодировке ISO 639-1.
-            language=language,
-             # В pageView передаётся признак - мобильное устройство: MOBILE или DESKTOP
-            pageView=page_type.name,
-            # *Продолжительность сессии в секундах. default=1200
-            sessionTimeoutSecs=session_timeout,
-        )
-        if fail_url:
-            # *Адрес, на который надо перенаправить пользователя в случае неуспешной оплаты
-            request['failUrl'] = fail_url
-        if description:
-             # *Описание заказа в свободной форме
-            request['description'] = description
-        if clinet_id:
-            # *Номер (идентификатор) клиента в системе магазина
-            request['clientId'] = clinet_id
-        if extra:
-            # *Поля дополнительной информации для последующего хранения
-            request['jsonParams'] = extra
-        if expiration:
-            # *Время жизни заказа. Если не задано вычисляется по sessionTimeoutSecs
-            request['expirationDate'] = expiration.isoformat().split('.')[0]
+            request = dict(
+                # Логин магазина, полученный при подключении
+                userName=self._username,
+                # Пароль магазина, полученный при подключении
+                password=self._password,
+                # Номер (идентификатор) заказа в системе магазина
+                orderNumber=order,
+                # Сумма платежа в минимальных единицах валюты(копейки).
+                amount=amount,
+                # *Код валюты платежа ISO 4217.
+                currency=currency,
+                # Адрес, на который надо перенаправить пользователя в случае успешной оплаты
+                returnUrl=success_url,
+                # *Язык в кодировке ISO 639-1.
+                language=language,
+                 # В pageView передаётся признак - мобильное устройство: MOBILE или DESKTOP
+                pageView=page_type.name,
+                # *Продолжительность сессии в секундах. default=1200
+                sessionTimeoutSecs=session_timeout,
+            )
+            if fail_url:
+                # *Адрес, на который надо перенаправить пользователя в случае неуспешной оплаты
+                request['failUrl'] = fail_url
+            if description:
+                 # *Описание заказа в свободной форме
+                request['description'] = description
+            if clinet_id:
+                # *Номер (идентификатор) клиента в системе магазина
+                request['clientId'] = clinet_id
+            if extra:
+                # *Поля дополнительной информации для последующего хранения
+                request['jsonParams'] = extra
+            if expiration:
+                # *Время жизни заказа. Если не задано вычисляется по sessionTimeoutSecs
+                request['expirationDate'] = expiration.isoformat().split('.')[0]
 
-        # 2. send request to the server
-        try:
-            response = self._request(url, request)
-        except SberError:
-            raise
-        except Exception as e:
-            raise SberError(e)
+            # 2. send request to the server
+            try:
+                response = self._request(url, request)
+            except SberError:
+                raise
+            except Exception as e:
+                raise SberError(e)
 
-        # 3. processing reply
-        if 'errorCode' in response and response.get('errorCode') != '0':
-            raise SberRequestError('register', response['errorCode'],
-                                   response.get('errorMessage', 'Description not presented'))
-        if 'orderId' not in response or 'formUrl' not in response:
-            raise SberNetworkError('Service temporary unavailable')
-        return response['orderId'], response['formUrl']
+            # 3. processing reply
+            if 'errorCode' in response and response.get('errorCode') != '0':
+                raise SberRequestError('register', response['errorCode'],
+                                       response.get('errorMessage', 'Description not presented'))
+            if 'orderId' not in response or 'formUrl' not in response:
+                raise SberNetworkError('Service temporary unavailable')
+            return response['orderId'], response['formUrl']
 
     def status(self, order_id: str, language: str='RU'):
         """
