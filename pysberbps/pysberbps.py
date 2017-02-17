@@ -33,6 +33,7 @@ class SberWrapper(object):
         DESKTOP = 1
         MOBILE = 2
 
+    # TODO: Refactor this, provide base url to quick switch between test and prod envs
     rest_urls = dict(
         # register order in sberbank
         register='https://3dsec.sberbank.ru/payment/rest/register.do',
@@ -45,11 +46,23 @@ class SberWrapper(object):
         # refund order
         refund='https://3dsec.sberbank.ru/payment/rest/refund.do'
     )
-    soap_urls = dict(
 
+    rest_urls_production = dict(
+        # register order in sberbank
+        register='https://securepayments.sberbank.ru/payment/rest/register.do',
+        # register order in sberbank (for 2 steps payments with hold mode)
+        registerPreAuth='https://securepayments.sberbank.ru/payment/rest/registerPreAuth.do',
+        # get order status
+        status='https://securepayments.sberbank.ru/payment/rest/getOrderStatus.do',
+        # get order extended status
+        status_ext='https://securepayments.sberbank.ru/payment/rest/getOrderStatusExtended.do',
+        # refund order
+        refund='https://securepayments.sberbank.ru/payment/rest/refund.do'
     )
 
-    def __init__(self, username: str, password: str, soap: bool=False, post: bool=True, urls: dict=None):
+    soap_urls = dict()
+
+    def __init__(self, username: str, password: str, soap: bool=False, post: bool=True, urls: dict=None, test_env: bool=True):
         """
         :param username: Store username
         :param password: Store password
@@ -64,7 +77,11 @@ class SberWrapper(object):
         self.post = post
         if self.soap and not self.post:
             raise ValueError("Soap request must be send by POST request")
-        self.urls = urls or (self.soap_urls if self.soap else self.rest_urls)
+
+        if test_env:
+            self.urls = urls or self.rest_urls
+        else:
+            self.urls = urls or self.rest_urls_production
 
     def _request(self, url, params):
         if self.soap:
@@ -117,7 +134,7 @@ class SberWrapper(object):
         :param currency: Currency code in ISO 4217
         :param fail_url: Send user to this URL after failure of payment
         :param is_pre_auth: If True, activates hold mode (2-step payments processing), default False
-    :param description: order description in free text format
+        :param description: order description in free text format
         :param language: Acquiring page language
         :param page_type: Is it mobile or desctop user ?
         :param clinet_id: Client id in the store
